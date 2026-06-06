@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>藍海深呼吸 Demo — Deep Blue: The Last Breath</title>
+<style>
+  :root {
+    --deep: #021B2E; --ocean: #065A82; --teal: #0D9488;
+    --cyan: #22D3EE; --white: #FFFFFF; --offwht: #E2F0F7;
+    --muted: #94BFCF; --card: #042B42; --gold: #F59E0B;
+    --red: #EF4444; --green: #22C55E; --orange: #FB923C;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--deep); color: var(--offwht); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+  .screen { display: none; width: 100%; max-width: 920px; padding: 20px; }
+  .screen.active { display: flex; flex-direction: column; align-items: center; }
+
+  /* TITLE */
+  #title-screen { justify-content: center; min-height: 100vh; text-align: center; gap: 14px; }
+  #title-screen h1 { font-size: clamp(2rem,8vw,4rem); color: var(--white); letter-spacing: 3px; }
+  #title-screen h2 { font-size: clamp(0.9rem,3vw,1.2rem); color: var(--muted); font-style: italic; }
+  .tagline { color: var(--teal); font-size: 0.8rem; letter-spacing: 4px; text-transform: uppercase; }
+  .story-box { background: var(--card); border-left: 3px solid var(--cyan); padding: 16px 20px; max-width: 560px; text-align: left; font-size: 0.9rem; line-height: 1.75; font-style: italic; }
+  .level-select { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .level-btn { background: var(--card); border: 1px solid var(--ocean); color: var(--offwht); padding: 10px 18px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; transition: all .2s; }
+  .level-btn:hover:not(.locked) { border-color: var(--teal); color: var(--cyan); }
+  .level-btn.locked { opacity: 0.4; cursor: not-allowed; }
+  .btn { background: var(--teal); color:#fff; border:none; padding:12px 32px; border-radius:6px; font-size:1rem; cursor:pointer; transition:background .2s; letter-spacing:1px; }
+  .btn:hover { background:#0f766e; }
+  .btn-ghost { background:transparent; border:1px solid var(--teal); color:var(--teal); }
+  .btn-ghost:hover { background:var(--teal); color:#fff; }
+  .kbd-hint { color: var(--muted); font-size: 0.78rem; }
+
+  /* GAME */
+  #game-screen { min-height:100vh; gap:8px; padding:12px; }
+
+  /* HUD */
+  .hud { display:flex; gap:8px; width:100%; flex-wrap:wrap; }
+  .hud-card { background:var(--card); border-radius:8px; padding:8px 12px; flex:1; min-width:100px; }
+  .hud-label { font-size:0.62rem; text-transform:uppercase; letter-spacing:2px; color:var(--muted); }
+  .hud-val { font-size:1.35rem; font-weight:700; color:var(--cyan); font-family:'Courier New',monospace; }
+  .hud-val.warn { color:var(--gold); }
+  .hud-val.danger { color:var(--red); animation:blink .7s infinite; }
+  @keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
+  .bar-wrap { background:#0a3a50; border-radius:3px; height:7px; margin-top:5px; }
+  .bar-fill { height:7px; border-radius:3px; transition:width .3s,background .3s; }
+  .bcd-row { display:flex; gap:5px; margin-top:5px; }
+  .bcd-btn { flex:1; padding:4px 2px; border-radius:4px; border:1px solid #1a4a5a; background:#0a2535; color:var(--muted); font-size:0.72rem; cursor:pointer; text-align:center; transition:all .2s; }
+  .bcd-btn.a-pos { background:#7c2d12; border-color:var(--orange); color:var(--orange); }
+  .bcd-btn.a-neu { background:#0a3a50; border-color:var(--teal); color:var(--teal); }
+  .bcd-btn.a-neg { background:#1e3a5f; border-color:var(--cyan); color:var(--cyan); }
+
+  /* MAP */
+  .map-wrap { width:100%; overflow-x:auto; }
+  #game-map { display:inline-grid; gap:2px; background:var(--deep); padding:6px; border-radius:8px; border:1px solid #0a3a50; }
+  .cell { width:46px; height:46px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:1.25rem; position:relative; }
+  .cell.water { background:#031e30; }
+  .cell.wall, .cell.coral { background:#0a1a24; }
+  .cell.surface { background:#0a2a40; border-top:2px solid var(--cyan); }
+  .cell.wk { background:#042b3d; }
+  .cell.st { background:#07233a; outline:1px solid #0d4a6e; }
+  .cell.up { background:#0a2035; }
+  .cell.tgt { background:#0a3a2a; }
+  .cell.player { background:#0d3a4a!important; box-shadow:0 0 10px var(--teal); }
+  .depth-lbl { color:var(--muted); font-size:0.62rem; display:flex; align-items:center; justify-content:flex-end; padding-right:3px; font-family:monospace; }
+
+  /* INFO */
+  .info-bar { background:var(--card); border-left:3px solid var(--teal); padding:9px 13px; width:100%; font-size:0.88rem; line-height:1.5; min-height:44px; border-radius:6px; }
+  .sensei { background:var(--card); border-left:3px solid var(--gold); padding:9px 13px; border-radius:6px; width:100%; font-size:0.85rem; color:var(--gold); font-style:italic; display:none; }
+  .sensei.on { display:block; }
+  .deco-warn { background:#7c1d1d; color:#fca5a5; padding:7px 13px; border-radius:6px; font-size:0.83rem; text-align:center; width:100%; display:none; }
+  .deco-warn.on { display:block; }
+
+  /* MOBILE CONTROLS */
+  .mc-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px; max-width:160px; margin-top:6px; }
+  .mc-btn { background:var(--card); border:1px solid var(--ocean); color:var(--offwht); padding:9px; border-radius:6px; cursor:pointer; font-size:1.1rem; text-align:center; user-select:none; }
+  .mc-btn:active { background:var(--ocean); }
+  .bcd-mobile { display:flex; gap:6px; margin-top:5px; }
+  .bcd-mobile .mc-btn { font-size:0.7rem; padding:6px 10px; }
+
+  /* OVERLAY */
+  .overlay { position:fixed; inset:0; background:rgba(2,27,46,.93); display:none; align-items:center; justify-content:center; z-index:100; }
+  .overlay.on { display:flex; }
+  .ov-card { background:var(--card); border-radius:12px; padding:28px 24px; max-width:480px; width:92%; text-align:center; }
+  .ov-card h2 { font-size:1.5rem; margin-bottom:6px; }
+  .edu-box { background:#0a2535; border-radius:8px; padding:13px; margin:12px 0; text-align:left; font-size:0.86rem; line-height:1.65; }
+  .edu-lbl { font-size:0.67rem; text-transform:uppercase; letter-spacing:2px; color:var(--teal); margin-bottom:5px; }
+  .stars { font-size:1.8rem; letter-spacing:4px; margin:8px 0; }
+  .stat-row { display:flex; justify-content:space-between; font-size:0.83rem; padding:4px 0; border-bottom:1px solid #0a3a50; }
+  .btn-row { display:flex; gap:9px; justify-content:center; margin-top:14px; flex-wrap:wrap; }
+</style>
+</head>
+<body>
+
+<!-- TITLE -->
+<div id="title-screen" class="screen active">
+  <p class="tagline">Deep Blue · The Last Breath</p>
+  <h1>藍海深呼吸</h1>
+  <h2>回合制策略潛水益智冒險</h2>
+  <div class="story-box">
+    「台灣東部外海 83 公里處，有一道深淵邊緣的海底斷崖。七年前，一位深海研究潛水員深入此處後失聯，留下一本日誌。那個孩子，是你。現在，你帶著那本日誌找到了她的前搭檔——<strong>蘇海航</strong>。訊號每隔三秒閃爍，像一顆心跳。」
+  </div>
+  <p style="font-size:0.78rem;color:var(--muted)">選擇關卡開始遊戲</p>
+  <div class="level-select">
+    <button class="level-btn" onclick="startLevel(0)">1-1 海龜的避風港 ★</button>
+    <button class="level-btn" id="lb1" onclick="startLevel(1)">1-2 獅子魚的防線 ★★</button>
+    <button class="level-btn" id="lb2" onclick="startLevel(2)">1-3 巨浪湧升流 ★★★</button>
+  </div>
+  <p class="kbd-hint">WASD / 方向鍵移動 · Q▲ E● R▼ 切換浮力 · Z 使用道具 · Backspace 重置</p>
+</div>
+
+<!-- GAME -->
+<div id="game-screen" class="screen">
+  <div class="hud">
+    <div class="hud-card">
+      <div class="hud-label">深度</div>
+      <div class="hud-val" id="h-depth">0m</div>
+    </div>
+    <div class="hud-card">
+      <div class="hud-label">NDL 回合</div>
+      <div class="hud-val" id="h-ndl">∞</div>
+    </div>
+    <div class="hud-card" style="flex:2">
+      <div class="hud-label">殘壓 BAR</div>
+      <div class="hud-val" id="h-air">80.0</div>
+      <div class="bar-wrap"><div class="bar-fill" id="air-bar" style="width:100%;background:var(--teal)"></div></div>
+    </div>
+    <div class="hud-card">
+      <div class="hud-label">BCD 浮力</div>
+      <div class="bcd-row">
+        <div class="bcd-btn" id="b-pos" onclick="setBcd('pos')">▲正</div>
+        <div class="bcd-btn a-neu" id="b-neu" onclick="setBcd('neu')">●中</div>
+        <div class="bcd-btn" id="b-neg" onclick="setBcd('neg')">▼負</div>
+      </div>
+    </div>
+    <div class="hud-card">
+      <div class="hud-label">回合</div>
+      <div class="hud-val" id="h-turns">0</div>
+    </div>
+  </div>
+  <div class="deco-warn" id="deco-warn">⚠️ NDL 超限！在指定深度停留減壓後才能上浮。</div>
+  <div class="info-bar" id="info-bar">準備就緒。向下移動開始探索。</div>
+  <div class="map-wrap"><div id="game-map"></div></div>
+  <div class="sensei" id="sensei"></div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:5px;margin-top:4px;">
+    <div class="mc-grid">
+      <span></span>
+      <div class="mc-btn" onclick="move(0,-1)">↑</div>
+      <span></span>
+      <div class="mc-btn" onclick="move(-1,0)">←</div>
+      <div class="mc-btn" onclick="move(0,1)">↓</div>
+      <div class="mc-btn" onclick="move(1,0)">→</div>
+    </div>
+    <div class="bcd-mobile">
+      <div class="mc-btn" onclick="setBcd('pos')">▲正浮</div>
+      <div class="mc-btn" onclick="setBcd('neu')">●中性</div>
+      <div class="mc-btn" onclick="setBcd('neg')">▼負浮</div>
+      <div class="mc-btn" onclick="useItem()">Z 道具</div>
+    </div>
+    <button class="btn btn-ghost" style="font-size:0.8rem;padding:7px 18px;margin-top:4px;" onclick="showTitle()">← 返回選關</button>
+  </div>
+</div>
+
+<!-- FAIL -->
+<div class="overlay" id="fail-ov">
+  <div class="ov-card">
+    <h2 id="fail-title" style="color:var(--red)">任務失敗</h2>
+    <div class="edu-box"><div class="edu-lbl">📚 潛水知識</div><div id="fail-edu"></div></div>
+    <div class="btn-row">
+      <button class="btn" onclick="resetLv()">再試一次</button>
+      <button class="btn btn-ghost" onclick="showTitle()">選關</button>
+    </div>
+  </div>
+</div>
+
+<!-- WIN -->
+<div class="overlay" id="win-ov">
+  <div class="ov-card">
+    <h2 id="win-title" style="color:var(--green)">任務完成！</h2>
+    <div class="stars" id="win-stars"></div>
+    <div>
+      <div class="stat-row"><span>消耗氣體</span><span id="ws-air"></span></div>
+      <div class="stat-row"><span>使用回合</span><span id="ws-turns"></span></div>
+      <div class="stat-row"><span>最深深度</span><span id="ws-depth"></span></div>
+    </div>
+    <div class="edu-box" id="win-edu" style="display:none">
+      <div class="edu-lbl">📖 潛水日誌解鎖</div>
+      <div id="win-edu-text"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="next-btn" onclick="nextLv()">下一關</button>
+      <button class="btn btn-ghost" onclick="showTitle()">選關</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const W='water',CR='coral',SU='surface',WK='wk',ST='st',UP='up',TG='tgt';
+function ndlAt(d){if(d<=5)return Infinity;if(d<=10)return 25;if(d<=15)return 18;if(d<=20)return 12;if(d<=25)return 8;if(d<=30)return 5;if(d<=40)return 2;return 1;}
+const BCC={pos:.9,neu:.8,neg:1.0};
+function pATA(d){return 1+d/10;}
+function cost(d,b){return +(pATA(d)*BCC[b]).toFixed(2);}
+const LEVELS=[{name:'1-1 海龜的避風港',cols:10,rows:8,depths:[0,5,10,12,15,18,20,22],startAir:80,start:[0,0],target:[3,9],grid:[[SU,SU,SU,SU,SU,SU,SU,SU,SU,SU],[W,W,W,W,W,W,W,W,W,W],[CR,W,W,W,WK,WK,WK,W,CR,W],[CR,W,W,W,ST,ST,ST,ST,W,W],[W,W,W,W,W,W,W,W,W,W],[W,W,W,W,W,W,W,W,W,W],[W,W,W,W,W,W,W,W,W,W],[W,W,W,W,W,W,W,W,W,W]],icons:{'3,9':'🎯'},turtle:[2,1],starAir:[55,45,35],logbook:'綠蠵龜利用地球磁場導航，精準度驚人——牠們能從數千公里外的覓食地回到出生沙灘。潛水員應與海龜保持 2 公尺距離，避免驚嚇。',failEdu:{air:'【三分之一法則】氣瓶三分之一去程、三分之一回程、三分之一備用。計算好路線再下潛。',dcs:'【DCS 減壓病】超速上浮讓氮氣在血液中形成氣泡，輕者關節劇痛，重者神經損傷。最大上浮速率 ≤ 9m/分鐘。',ndl:'【NDL 超限】超過免減壓時間後，必須在 5m 深停留至少 3 分鐘讓氮氣排出組織。'},senseiWin:'「回來了就好。」',senseiWin3:'「妳媽當年也是這個動作。繼續。」'},{name:'1-2 獅子魚的防線',cols:9,rows:6,depths:[15,17,18,19,20,21],startAir:80,start:[0,0],target:[3,1],grid:[[SU,SU,W,W,W,W,W,W,CR],[CR,W,W,W,W,W,CR,W,W],[W,W,W,W,W,W,W,W,W],[CR,W,W,W,W,W,W,W,W],[W,W,W,W,W,W,W,W,W],[W,W,W,W,W,W,W,W,W]],icons:{'3,1':'🎯','1,2':'🦁','1,3':'🦁','2,7':'🐍','2,8':'🐍','3,7':'🐍','3,8':'🐍'},waterGun:true,lionfishPos:[[1,2],[1,3]],eelPos:[[2,7],[2,8],[3,7],[3,8]],starAir:[60,50,40],logbook:'獅子魚毒棘注射毒素僅用於防禦，從不主動攻擊潛水員。受傷後毒素對熱不穩定，可用熱水浸泡緩解。台灣沿岸至少有 5 種獅子魚。',failEdu:{air:'【深度耗氧】20m 深時每回合耗氧比水面多 3 倍。壓力讓你的氣瓶「縮水」得更快。',dcs:'【減壓病】20m 深 NDL 只有 12 回合——這關設計剛好在邊界。規劃好再下潛。',ndl:'【NDL 管理】一旦超過 NDL，需要減壓停留，消耗更多氣體。計算路線避免超時。'},senseiWin:'「氧氣留著比面子重要。」',senseiWin3:'「你和她一樣。她也喜歡把事情做到剛剛好。」'},{name:'1-3 巨浪湧升流',cols:6,rows:9,depths:[0,5,10,15,20,25,30,35,38],startAir:80,start:[0,0],target:[8,5],grid:[[SU,W,W,W,W,SU],[W,W,W,W,W,W],[CR,W,UP,W,W,CR],[W,W,UP,W,W,W],[W,W,UP,W,W,W],[CR,W,UP,W,W,CR],[W,W,W,W,W,W],[W,W,W,W,W,W],[W,W,W,W,W,W]],icons:{'8,5':'🎯'},upwellCols:[2],upwellPeriod:3,starAir:[50,42,34],logbook:'湧升流（Upwelling）將深層富養分冷水帶到海面，是珊瑚礁與漁業的重要能量來源。台灣東部黑潮帶來的湧升流，造就了世界頂級的潛水環境。',failEdu:{air:'【湧升流策略】湧升流停止時移動，中性浮力借洋流橫移——比正面對抗少耗 40% 氣體。',dcs:'【上浮速率】湧升流會加速上浮。若速度超過安全值，切換負浮力對抗，否則觸發 DCS。',ndl:'【深度累積】多次進出深水會累積 NDL。即使是 25m 也只剩 8 回合，規劃好再衝。'},senseiWin:'「下次出發前，把耗氧算清楚再入水。」',senseiWin3:'「妳媽說：和宇宙一起呼吸。妳做到了。」'}];
+let G={},cleared=[false,false,false],curLv=0;
+function startLevel(i){curLv=i;const lv=LEVELS[i];G={lv,r:lv.start[0],c:lv.start[1],bcd:'neu',air:lv.startAir,turns:0,maxDepth:lv.depths[lv.start[0]],ndlUsed:0,decoReq:false,decoLeft:0,turtle:lv.turtle?[...lv.turtle]:null,turtleBlock:false,lfPos:lv.lionfishPos?lv.lionfishPos.map(p=>[...p]):null,lfFled:false,itemUsed:false,upTimer:lv.upwellPeriod||999,upActive:false,dead:false,won:false,icons:{...lv.icons}};showScreen('game-screen');render();hud();msg('準備就緒。向下移動開始探索。');hideSensei();hideOv();}
+function resetLv(){hideOv();startLevel(curLv);}
+function nextLv(){hideOv();if(curLv<LEVELS.length-1)startLevel(curLv+1);else showTitle();}
+function showTitle(){showScreen('title-screen');updateLvBtns();}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function hideOv(){document.getElementById('fail-ov').classList.remove('on');document.getElementById('win-ov').classList.remove('on');}
+function updateLvBtns(){document.getElementById('lb1').className='level-btn'+(cleared[0]?'':' locked');document.getElementById('lb2').className='level-btn'+(cleared[1]?'':' locked');}
+function msg(t){document.getElementById('info-bar').textContent=t;}
+function hideSensei(){const s=document.getElementById('sensei');s.classList.remove('on');}
+function showSensei(t){const s=document.getElementById('sensei');s.textContent='蘇老師：「'+t+'」';s.classList.add('on');}
+function el(id){return document.getElementById(id);}
+function render(){const lv=G.lv,map=el('game-map');map.style.gridTemplateColumns=`34px repeat(${lv.cols},46px)`;map.innerHTML='';for(let r=0;r<lv.rows;r++){const dl=document.createElement('div');dl.className='depth-lbl';dl.textContent=lv.depths[r]+'m';map.appendChild(dl);for(let c=0;c<lv.cols;c++){const d=document.createElement('div');d.className='cell '+lv.grid[r][c];const isPlayer=r===G.r&&c===G.c;if(isPlayer){d.classList.add('player');d.textContent='🤿';}else{const k=`${r},${c}`;let ico=G.icons[k]||'';if(G.turtle&&G.turtle[0]===r&&G.turtle[1]===c)ico='🐢';if(G.lfPos&&!G.lfFled)G.lfPos.forEach(p=>{if(p[0]===r&&p[1]===c)ico='🦁';});if(G.lfPos&&!G.lfFled){const eels=G.lv.eelPos||[];eels.forEach(p=>{if(p[0]===r&&p[1]===c&&ico!=='🦁')ico='🐍';});}if(lv.grid[r][c]===UP&&!ico)ico=G.upActive?'💨':'↑';d.textContent=ico;}map.appendChild(d);}}}
+function hud(){const lv=G.lv,depth=lv.depths[G.r];const nl=ndlAt(G.maxDepth);const left=nl===Infinity?'∞':Math.max(0,nl-G.ndlUsed);const pct=G.air/G.lv.startAir*100;el('h-depth').textContent=depth+'m';el('h-ndl').textContent=left;el('h-air').textContent=G.air.toFixed(1);el('h-turns').textContent=G.turns;const ndlEl=el('h-ndl');ndlEl.className='hud-val';if(left!=='∞'){if(left<=0)ndlEl.classList.add('danger');else if(left<=3)ndlEl.classList.add('warn');}const airEl=el('h-air');airEl.className='hud-val';if(pct<20)airEl.classList.add('danger');else if(pct<35)airEl.classList.add('warn');const bar=el('air-bar');bar.style.width=Math.max(0,pct)+'%';bar.style.background=pct<20?'var(--red)':pct<35?'var(--gold)':'var(--teal)';['pos','neu','neg'].forEach(b=>{const btn=el('b-'+b);btn.className='bcd-btn';if(G.bcd===b)btn.classList.add('a-'+b);});el('deco-warn').className='deco-warn'+(G.decoReq?' on':'');}
+function setBcd(m){if(G.dead||G.won)return;const prev=G.bcd;G.bcd=m;if(prev!=='neg'&&m==='neg'){G.air=+(G.air-0.5).toFixed(2);if(G.air<=0){fail('air');return;}msg('切換負浮力 (−0.5 BAR)');}hud();render();}
+function move(dc,dr){if(G.dead||G.won)return;const lv=G.lv;let nr=G.r+dr,nc=G.c+dc;if(nr<0||nr>=lv.rows||nc<0||nc>=lv.cols)return;const ct=lv.grid[nr][nc];if(ct==='coral'||ct==='wall'){msg('礁石擋住去路。');return;}if(G.decoReq&&dr<0){msg('⚠️ NDL 超限！還需 '+G.decoLeft+' 回合減壓，才能繼續上浮。');return;}if(G.upActive&&lv.upwellCols&&lv.upwellCols.includes(nc)&&G.bcd!=='neg'){msg('💨 湧升流爆發！切換負浮力（▼）才能抵抗。');return;}if(G.turtle&&nr===G.turtle[0]&&nc===G.turtle[1]){if(G.bcd!=='neg'){msg('🐢 推海龜需要負浮力（▼）。');return;}const pr=G.turtle[0]+dr,pc=G.turtle[1]+dc;if(pr<0||pr>=lv.rows||pc<0||pc>=lv.cols||lv.grid[pr][pc]==='coral'){msg('🐢 海龜無法被推到那裡。');return;}G.turtle=[pr,pc];if(pr===3&&pc===4){G.turtleBlock=true;msg('🐢 海龜擋住強洋流！D–G 列路徑開通。');}}if(ct===ST&&!G.turtleBlock&&G.bcd!=='neg'){msg('══ 強洋流！需要負浮力，或推海龜擋住水流。');return;}if(G.lfPos&&!G.lfFled){for(const p of G.lfPos)if(p[0]===nr&&p[1]===nc){msg('🦁 獅子魚擋路！靠近後按 Z 使用水槍。');return;}}if(lv.eelPos&&!G.lfFled){for(const p of lv.eelPos)if(p[0]===nr&&p[1]===nc){msg('🐍 海鰻在此！驅趕獅子魚才能通過。');return;}}G.r=nr;G.c=nc;G.turns++;const depth=lv.depths[G.r];if(depth>G.maxDepth)G.maxDepth=depth;const c0=cost(depth,G.bcd);G.air=+(G.air-c0).toFixed(2);const nl=ndlAt(G.maxDepth);if(nl!==Infinity&&depth>0){G.ndlUsed++;if(G.ndlUsed>nl&&!G.decoReq){G.decoReq=true;G.decoLeft=3;msg('⚠️ NDL 超限！在 5m 深停留 3 回合減壓後才能上浮。');}}if(G.decoReq&&depth<=5){G.decoLeft=Math.max(0,G.decoLeft-1);if(G.decoLeft<=0){G.decoReq=false;msg('✅ 減壓完成，可以上浮！');}else msg('⏳ 減壓中，還需 '+G.decoLeft+' 回合。');}if(lv.upwellPeriod){G.upTimer--;if(G.upTimer<=0){G.upActive=!G.upActive;G.upTimer=G.upActive?1:lv.upwellPeriod;if(G.upActive){msg('💨 湧升流爆發！C 列封鎖。');if(lv.upwellCols.includes(G.c)&&G.bcd!=='neg'){G.r=Math.max(0,G.r-2);msg('💨 湧升流爆發！你被推上 2 格！');}}else{msg('湧升流消退，C 列可通行。');}}}if(G.bcd==='pos'&&G.r>0){const at=lv.grid[G.r-1][G.c];if(at!=='coral'&&at!=='wall'){G.r--;G.air=+(G.air-cost(lv.depths[G.r],'pos')).toFixed(2);msg('▲ 正浮力：自動上漂。');}}const prevDepth=lv.depths[G.r-dr]??0;const nowDepth=lv.depths[G.r];if(prevDepth-nowDepth>5&&G.maxDepth>10){fail('dcs');return;}if(G.air<=0){fail('air');return;}if(G.r===lv.target[0]&&G.c===lv.target[1]){win();return;}const depth2=lv.depths[G.r];if(el('info-bar').textContent.startsWith('準備'))msg(`深度 ${depth2}m · 殘壓 ${G.air} BAR · -${c0} BAR`);render();hud();}
+function useItem(){if(G.dead||G.won)return;if(!G.lv.waterGun){msg('此關卡無可用道具。');return;}if(G.itemUsed){msg('水槍已使用過。');return;}if(G.lfFled){msg('獅子魚已離開。');return;}if(!G.lfPos){return;}let adj=false;for(const p of G.lfPos)if(Math.abs(p[0]-G.r)<=1&&Math.abs(p[1]-G.c)<=1){adj=true;break;}if(!adj){msg('🔫 需要靠近獅子魚才能使用水槍（相鄰格內）。');return;}G.itemUsed=true;G.lfFled=true;G.turns++;G.air=+(G.air-cost(G.lv.depths[G.r],G.bcd)).toFixed(2);if(G.air<=0){fail('air');return;}msg('🔫 水槍！獅子魚竄向海鰻，海鰻退至右側！目標路徑開通。');render();hud();}
+function fail(reason){G.dead=true;const lv=G.lv;const titles={air:'最後一口氣',dcs:'氣泡在血液裡',ndl:'NDL 超限'};el('fail-title').textContent=titles[reason]||'任務失敗';el('fail-edu').textContent=lv.failEdu[reason]||lv.failEdu.air;el('fail-ov').classList.add('on');render();}
+function win(){G.won=true;cleared[curLv]=true;const lv=G.lv;const airLeft=G.air;let stars=1;if(airLeft>=lv.starAir[2])stars=3;else if(airLeft>=lv.starAir[1])stars=2;el('win-title').textContent=lv.name+' 完成！';el('win-stars').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);el('ws-air').textContent=(lv.startAir-G.air).toFixed(1)+' BAR';el('ws-turns').textContent=G.turns+' 回合';el('ws-depth').textContent=G.maxDepth+'m';const eduEl=el('win-edu');if(stars>=1){eduEl.style.display='block';el('win-edu-text').textContent=lv.logbook;}else{eduEl.style.display='none';}const s=stars===3?lv.senseiWin3:lv.senseiWin;showSensei(s);el('next-btn').style.display=curLv<LEVELS.length-1?'':'none';el('win-ov').classList.add('on');}
+document.addEventListener('keydown',e=>{const k=e.key;if(['ArrowUp','w','W'].includes(k)){e.preventDefault();move(0,-1);}else if(['ArrowDown','s','S'].includes(k)){e.preventDefault();move(0,1);}else if(['ArrowLeft','a','A'].includes(k)){e.preventDefault();move(-1,0);}else if(['ArrowRight','d','D'].includes(k)){e.preventDefault();move(1,0);}else if(k==='q'||k==='Q')setBcd('pos');else if(k==='e'||k==='E')setBcd('neu');else if(k==='r'||k==='R')setBcd('neg');else if(k==='z'||k==='Z')useItem();else if(k==='Backspace'){e.preventDefault();resetLv();}});
+updateLvBtns();
+</script>
+</body>
+</html>
